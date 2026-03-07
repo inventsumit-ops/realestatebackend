@@ -1,0 +1,475 @@
+@startuml Real Estate ER Diagram
+
+' Define entities with their attributes
+
+entity User {
+    * **_id** ObjectId
+    * **name** String (required)
+    * **email** String (unique, required)
+    * **phone** String (required)
+    * **password** String (required, hidden)
+    * **role** Enum[user, agent, admin]
+    * **profile_image** String
+    * **isEmailVerified** Boolean
+    * **emailVerificationToken** String
+    * **passwordResetToken** String
+    * **passwordResetExpires** Date
+    * **lastLogin** Date
+    * **isActive** Boolean
+    * **createdAt** Date
+    * **updatedAt** Date
+}
+
+entity UserProfile {
+    * **_id** ObjectId
+    * **user_id** ObjectId (FK to User)
+    * **address** String
+    * **city** String
+    * **state** String
+    * **country** String
+    * **zip_code** String
+    * **bio** String
+    * **date_of_birth** Date
+    * **gender** Enum[male, female, other, prefer_not_to_say]
+    * **preferred_language** String
+    * **timezone** String
+    * **createdAt** Date
+    * **updatedAt** Date
+}
+
+entity Agent {
+    * **_id** ObjectId
+    * **user_id** ObjectId (FK to User, unique)
+    * **license_number** String (unique, required)
+    * **agency_name** String (required)
+    * **experience_years** Number (required)
+    * **verified** Boolean
+    * **verification_date** Date
+    * **specialties** Array<String>
+    * **languages** Array<String>
+    * **service_areas** Array<Object>
+    * **commission_rate** Number
+    * **bio** String
+    * **achievements** Array<Object>
+    * **social_links** Object
+    * **response_time** Enum
+    * **availability** Object
+    * **rating** Object
+    * **total_sales** Number
+    * **total_properties_sold** Number
+    * **is_active** Boolean
+    * **createdAt** Date
+    * **updatedAt** Date
+}
+
+entity Property {
+    * **_id** ObjectId
+    * **title** String (required)
+    * **description** String (required)
+    * **price** Number (required)
+    * **location** String (required)
+    * **city** String (required)
+    * **state** String (required)
+    * **country** String (required)
+    * **latitude** Number (required)
+    * **longitude** Number (required)
+    * **property_type** Enum[apartment, house, villa, condo, townhouse, commercial, land, studio]
+    * **status** Enum[available, sold, rented, pending, off_market]
+    * **bedrooms** Number (required)
+    * **bathrooms** Number (required)
+    * **area** Number (required)
+    * **area_unit** Enum[sqft, sqm, sqyd, acre]
+    * **agent_id** ObjectId (FK to Agent, required)
+    * **year_built** Number
+    * **parking_spaces** Number
+    * **furnished** Boolean
+    * **pet_friendly** Boolean
+    * **featured** Boolean
+    * **views_count** Number
+    * **isApproved** Boolean
+    * **approvedAt** Date
+    * **approvedBy** ObjectId (FK to User)
+    * **createdAt** Date
+    * **updatedAt** Date
+}
+
+entity PropertyImage {
+    * **_id** ObjectId
+    * **property_id** ObjectId (FK to Property, required)
+    * **image_url** String (required)
+    * **image_key** String (required)
+    * **is_primary** Boolean
+    * **alt_text** String
+    * **file_size** Number (required)
+    * **file_type** Enum
+    * **upload_date** Date
+    * **order** Number
+    * **createdAt** Date
+    * **updatedAt** Date
+}
+
+entity PropertyVideo {
+    * **_id** ObjectId
+    * **property_id** ObjectId (FK to Property, required)
+    * **video_url** String (required)
+    * **video_key** String (required)
+    * **title** String
+    * **description** String
+    * **file_size** Number (required)
+    * **file_type** Enum
+    * **duration** Number
+    * **thumbnail_url** String
+    * **upload_date** Date
+    * **is_featured** Boolean
+    * **createdAt** Date
+    * **updatedAt** Date
+}
+
+entity Amenity {
+    * **_id** ObjectId
+    * **name** String (required)
+    * **icon** String (required)
+    * **category** Enum[general, safety, entertainment, outdoor, kitchen, bathroom, laundry, heating_cooling]
+    * **description** String
+    * **is_active** Boolean
+    * **createdAt** Date
+    * **updatedAt** Date
+}
+
+entity PropertyAmenity {
+    * **_id** ObjectId
+    * **property_id** ObjectId (FK to Property, required)
+    * **amenity_id** ObjectId (FK to Amenity, required)
+    * **added_date** Date
+    * **createdAt** Date
+    * **updatedAt** Date
+}
+
+entity Favorite {
+    * **_id** ObjectId
+    * **user_id** ObjectId (FK to User, required)
+    * **property_id** ObjectId (FK to Property, required)
+    * **created_at** Date
+    * **createdAt** Date
+    * **updatedAt** Date
+}
+
+entity PropertyReview {
+    * **_id** ObjectId
+    * **user_id** ObjectId (FK to User, required)
+    * **property_id** ObjectId (FK to Property, required)
+    * **rating** Number (1-5, required)
+    * **comment** String (required)
+    * **is_verified** Boolean
+    * **helpful_count** Number
+    * **response** String
+    * **response_date** Date
+    * **responded_by** ObjectId (FK to User)
+    * **createdAt** Date
+    * **updatedAt** Date
+}
+
+entity PropertyView {
+    * **_id** ObjectId
+    * **property_id** ObjectId (FK to Property, required)
+    * **user_id** ObjectId (FK to User, nullable)
+    * **view_date** Date
+    * **ip_address** String
+    * **user_agent** String
+    * **session_id** String
+    * **duration** Number
+    * **createdAt** Date
+    * **updatedAt** Date
+}
+
+entity Inquiry {
+    * **_id** ObjectId
+    * **user_id** ObjectId (FK to User, required)
+    * **property_id** ObjectId (FK to Property, required)
+    * **message** String (required)
+    * **status** Enum[pending, responded, closed]
+    * **agent_response** String
+    * **responded_at** Date
+    * **responded_by** ObjectId (FK to User)
+    * **priority** Enum[low, medium, high]
+    * **contact_method** Enum[email, phone, both]
+    * **preferred_contact_time** String
+    * **createdAt** Date
+    * **updatedAt** Date
+}
+
+entity Appointment {
+    * **_id** ObjectId
+    * **user_id** ObjectId (FK to User, required)
+    * **property_id** ObjectId (FK to Property, required)
+    * **agent_id** ObjectId (FK to Agent, required)
+    * **appointment_date** Date (required)
+    * **duration** Number (minutes)
+    * **status** Enum[scheduled, confirmed, completed, cancelled, no_show]
+    * **notes** String
+    * **cancellation_reason** String
+    * **cancelled_by** ObjectId (FK to User)
+    * **cancelled_at** Date
+    * **reminder_sent** Boolean
+    * **feedback** String
+    * **feedback_rating** Number (1-5)
+    * **createdAt** Date
+    * **updatedAt** Date
+}
+
+entity Message {
+    * **_id** ObjectId
+    * **sender_id** ObjectId (FK to User, required)
+    * **receiver_id** ObjectId (FK to User, required)
+    * **message** String (required)
+    * **message_type** Enum[text, image, file, property_share]
+    * **attachment_url** String
+    * **attachment_name** String
+    * **property_id** ObjectId (FK to Property)
+    * **is_read** Boolean
+    * **read_at** Date
+    * **conversation_id** String (required)
+    * **is_deleted_by_sender** Boolean
+    * **is_deleted_by_receiver** Boolean
+    * **createdAt** Date
+    * **updatedAt** Date
+}
+
+entity AgentReview {
+    * **_id** ObjectId
+    * **agent_id** ObjectId (FK to Agent, required)
+    * **user_id** ObjectId (FK to User, required)
+    * **rating** Number (1-5, required)
+    * **review** String (required)
+    * **property_id** ObjectId (FK to Property)
+    * **communication_rating** Number (1-5)
+    * **professionalism_rating** Number (1-5)
+    * **knowledge_rating** Number (1-5)
+    * **helpful_count** Number
+    * **is_verified** Boolean
+    * **agent_response** String
+    * **response_date** Date
+    * **createdAt** Date
+    * **updatedAt** Date
+}
+
+entity Role {
+    * **_id** ObjectId
+    * **role_name** String (unique, required)
+    * **description** String
+    * **is_active** Boolean
+    * **is_system** Boolean
+    * **createdAt** Date
+    * **updatedAt** Date
+}
+
+entity Permission {
+    * **_id** ObjectId
+    * **permission_name** String (unique, required)
+    * **description** String
+    * **resource** String (required)
+    * **action** Enum[create, read, update, delete, manage, approve, verify]
+    * **is_active** Boolean
+    * **is_system** Boolean
+    * **createdAt** Date
+    * **updatedAt** Date
+}
+
+entity RolePermission {
+    * **_id** ObjectId
+    * **role_id** ObjectId (FK to Role, required)
+    * **permission_id** ObjectId (FK to Permission, required)
+    * **created_by** ObjectId (FK to User, required)
+    * **createdAt** Date
+    * **updatedAt** Date
+}
+
+entity Notification {
+    * **_id** ObjectId
+    * **user_id** ObjectId (FK to User, required)
+    * **title** String (required)
+    * **message** String (required)
+    * **type** Enum[inquiry, appointment, message, property_update, system, marketing, review]
+    * **is_read** Boolean
+    * **read_at** Date
+    * **related_id** ObjectId
+    * **related_model** Enum[Property, Inquiry, Appointment, Message, Review]
+    * **action_url** String
+    * **priority** Enum[low, medium, high, urgent]
+    * **expires_at** Date
+    * **is_deleted** Boolean
+    * **deleted_at** Date
+    * **createdAt** Date
+    * **updatedAt** Date
+}
+
+entity ActivityLog {
+    * **_id** ObjectId
+    * **user_id** ObjectId (FK to User, required)
+    * **action** Enum (required)
+    * **resource_type** Enum
+    * **resource_id** ObjectId
+    * **description** String (required)
+    * **ip_address** String
+    * **user_agent** String
+    * **metadata** Object
+    * **createdAt** Date
+    * **updatedAt** Date
+}
+
+entity Blog {
+    * **_id** ObjectId
+    * **title** String (required)
+    * **slug** String (unique, required)
+    * **content** String (required)
+    * **excerpt** String
+    * **featured_image** String
+    * **featured_image_key** String
+    * **author** String (required)
+    * **author_id** ObjectId (FK to User, required)
+    * **category_id** ObjectId (FK to BlogCategory, required)
+    * **tags** Array<String>
+    * **status** Enum[draft, published, archived]
+    * **published_at** Date
+    * **views** Number
+    * **likes** Number
+    * **seo_title** String
+    * **seo_description** String
+    * **seo_keywords** Array<String>
+    * **reading_time** Number
+    * **is_featured** Boolean
+    * **featured_until** Date
+    * **createdAt** Date
+    * **updatedAt** Date
+}
+
+entity BlogCategory {
+    * **_id** ObjectId
+    * **name** String (required)
+    * **slug** String (unique, required)
+    * **description** String
+    * **parent_category** ObjectId (FK to BlogCategory, nullable)
+    * **image** String
+    * **image_key** String
+    * **is_active** Boolean
+    * **order** Number
+    * **createdAt** Date
+    * **updatedAt** Date
+}
+
+entity BlogComment {
+    * **_id** ObjectId
+    * **blog_id** ObjectId (FK to Blog, required)
+    * **user_id** ObjectId (FK to User, required)
+    * **comment** String (required)
+    * **parent_comment** ObjectId (FK to BlogComment, nullable)
+    * **status** Enum[pending, approved, rejected]
+    * **likes** Number
+    * **is_deleted** Boolean
+    * **deleted_at** Date
+    * **deleted_by** ObjectId (FK to User)
+    * **createdAt** Date
+    * **updatedAt** Date
+}
+
+entity FeaturedProperty {
+    * **_id** ObjectId
+    * **property_id** ObjectId (FK to Property, required)
+    * **start_date** Date (required)
+    * **end_date** Date (required)
+    * **featured_type** Enum[home_page, category_page, search_results, premium_listing]
+    * **priority** Number (0-10)
+    * **is_active** Boolean
+    * **cost** Number (required)
+    * **paid** Boolean
+    * **payment_date** Date
+    * **created_by** ObjectId (FK to User, required)
+    * **createdAt** Date
+    * **updatedAt** Date
+}
+
+entity Advertisement {
+    * **_id** ObjectId
+    * **title** String (required)
+    * **image** String (required)
+    * **image_key** String (required)
+    * **link** String (required)
+    * **description** String
+    * **status** Enum[active, inactive, expired]
+    * **ad_type** Enum[banner, sidebar, popup, featured_agent]
+    * **position** Enum[home_top, home_middle, home_bottom, search_sidebar, property_detail]
+    * **start_date** Date (required)
+    * **end_date** Date (required)
+    * **clicks** Number
+    * **impressions** Number
+    * **cost** Number (required)
+    * **paid** Boolean
+    * **payment_date** Date
+    * **advertiser_name** String (required)
+    * **advertiser_email** String (required)
+    * **target_audience** Array<String>
+    * **created_by** ObjectId (FK to User, required)
+    * **createdAt** Date
+    * **updatedAt** Date
+}
+
+' Define relationships
+
+User ||--|| UserProfile : "has one"
+User ||--o| Agent : "can be agent"
+User ||--o{ Notification : "receives"
+User ||--o{ ActivityLog : "performs"
+User ||--o{ Favorite : "has"
+User ||--o{ PropertyReview : "writes"
+User ||--o{ Inquiry : "sends"
+User ||--o{ Appointment : "books"
+User ||--o{ Message : "sends/receives"
+User ||--o{ AgentReview : "writes"
+User ||--o{ Blog : "authors"
+User ||--o{ BlogComment : "writes"
+User ||--o{ FeaturedProperty : "creates"
+User ||--o{ Advertisement : "creates"
+
+Agent ||--o{ Property : "lists"
+Agent ||--o{ Appointment : "attends"
+Agent ||--o{ AgentReview : "receives"
+Agent ||--o{ Inquiry : "responds to"
+
+Property ||--o{ PropertyImage : "has many"
+Property ||--o{ PropertyVideo : "has many"
+Property ||--o{ PropertyAmenity : "has many"
+Property ||--o{ Favorite : "in"
+Property ||--o{ PropertyReview : "receives"
+Property ||--o{ Inquiry : "receives"
+Property ||--o{ Appointment : "for"
+Property ||--o{ Message : "referenced in"
+Property ||--o{ AgentReview : "related to"
+Property ||--o{ PropertyView : "viewed"
+Property ||--o{ FeaturedProperty : "featured as"
+
+Amenity ||--o{ PropertyAmenity : "used in"
+
+Blog ||--o{ BlogComment : "has"
+BlogCategory ||--o{ Blog : "contains"
+BlogCategory ||--o{ BlogCategory : "parent-child"
+BlogComment ||--o{ BlogComment : "replies to"
+
+Role ||--o{ RolePermission : "has"
+Permission ||--o{ RolePermission : "granted in"
+
+' Styling
+skinparam class {
+    BackgroundColor LightBlue
+    ArrowColor Black
+    BorderColor DarkBlue
+}
+
+skinparam entity {
+    BackgroundColor LightGreen
+    BorderColor DarkGreen
+}
+
+title Real Estate Backend System - Entity Relationship Diagram
+caption Comprehensive database schema for real estate management platform
+
+@enduml
