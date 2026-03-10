@@ -14,6 +14,7 @@ const {
   getAgents,
   createAgent,
   verifyAgent,
+  updateAgent,
   getInquiries,
   createInquiry,
   updateInquiryStatus,
@@ -56,6 +57,7 @@ router.delete('/properties/:id', deleteProperty);
 
 router.get('/agents', getAgents);
 router.post('/agents', createAgent);
+router.put('/agents/:id', updateAgent);
 router.put('/agents/:id/verify', verifyAgent);
 
 router.get('/inquiries', getInquiries);

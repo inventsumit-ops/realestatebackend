@@ -32,7 +32,7 @@ const notificationSchema = new mongoose.Schema({
   },
   related_model: {
     type: String,
-    enum: ['Property', 'Inquiry', 'Appointment', 'Message', 'Review'],
+    enum: ['Property', 'Inquiry', 'Appointment', 'Message', 'Review', 'Agent'],
     required: false
   },
   action_url: String,

@@ -442,7 +442,7 @@ const getAgents = asyncHandler(async (req, res) => {
 
   let filter = {};
   
-  if (verified !== undefined) filter.verified = verified === 'true';
+  if (verified !== undefined && verified !== '') filter.verified = verified === 'true';
   if (status === 'active') filter.is_active = true;
   if (status === 'inactive') filter.is_active = false;
   
@@ -467,16 +467,38 @@ const getAgents = asyncHandler(async (req, res) => {
   if (sort_by === 'rating') sort = { 'rating.average': -1 };
 
   const agents = await Agent.find(filter)
-    .populate({ path: 'user_id', select: 'name email profile_image' })
+    .populate({ 
+      path: 'user_id', 
+      select: 'name email profile_image phone isEmailVerified isActive lastLogin'
+    })
+    .select('user_id license_number agency_name experience_years verified bio specialties languages service_areas response_time availability rating total_sales total_properties_sold is_active createdAt')
     .skip(skip)
     .limit(limit)
     .sort(sort);
+
+  // Get user profiles for all agents
+  const userIds = agents.map(agent => agent.user_id._id);
+  const profiles = await UserProfile.find({ user_id: { $in: userIds } });
+  
+  // Create a map for easy lookup
+  const profileMap = {};
+  profiles.forEach(profile => {
+    profileMap[profile.user_id.toString()] = profile;
+  });
+  
+  // Combine agent data with profile data
+  const agentsWithProfiles = agents.map(agent => {
+    const agentObj = agent.toObject();
+    const profile = profileMap[agent.user_id._id.toString()];
+    agentObj.user_profile = profile || null;
+    return agentObj;
+  });
 
   const total = await Agent.countDocuments(filter);
 
   res.json({
     success: true,
-    data: agents,
+    data: agentsWithProfiles,
     pagination: {
       page,
       limit,
@@ -522,6 +544,78 @@ const verifyAgent = asyncHandler(async (req, res) => {
     success: true,
     message: 'Agent verified successfully',
     data: agent
+  });
+});
+
+const updateAgent = asyncHandler(async (req, res) => {
+  const agentId = req.params.id;
+  const updateData = req.body;
+
+  // Find the agent
+  const agent = await Agent.findById(agentId);
+  if (!agent) {
+    return res.status(404).json({
+      success: false,
+      message: 'Agent not found'
+    });
+  }
+
+  // Update agent fields
+  const allowedFields = ['agency_name', 'license_number', 'experience_years', 'specialties', 'languages', 'service_areas', 'response_time', 'availability', 'bio', 'is_active'];
+  const agentUpdateData = {};
+  
+  Object.keys(updateData).forEach(key => {
+    if (allowedFields.includes(key)) {
+      agentUpdateData[key] = updateData[key];
+    }
+  });
+
+  // Update agent
+  const updatedAgent = await Agent.findByIdAndUpdate(
+    agentId,
+    agentUpdateData,
+    { new: true, runValidators: true }
+  ).populate({ 
+    path: 'user_id', 
+    select: 'name email profile_image phone isEmailVerified isActive lastLogin' 
+  });
+
+  // Update user profile if provided
+  if (updateData.user_profile) {
+    await UserProfile.findOneAndUpdate(
+      { user_id: agent.user_id },
+      updateData.user_profile,
+      { new: true, upsert: true }
+    );
+  }
+
+  // Update user profile image if provided
+  if (updateData.profile_image) {
+    await User.findByIdAndUpdate(
+      agent.user_id,
+      { profile_image: updateData.profile_image }
+    );
+  }
+
+  // Get updated user profile for response
+  const userProfile = await UserProfile.findOne({ user_id: agent.user_id });
+
+  // Combine agent data with profile data
+  const agentObj = updatedAgent.toObject();
+  agentObj.user_profile = userProfile;
+
+  await ActivityLog.create({
+    user_id: req.user.id,
+    action: 'admin_update_agent',
+    description: `Updated agent: ${updatedAgent.user_id.name}`,
+    resource_type: 'Agent',
+    resource_id: agentId
+  });
+
+  res.json({
+    success: true,
+    message: 'Agent updated successfully',
+    data: agentObj
   });
 });
 
@@ -994,23 +1088,99 @@ const createProperty = asyncHandler(async (req, res) => {
 
 // Create Agent
 const createAgent = asyncHandler(async (req, res) => {
-  const agentData = req.body;
-  agentData.user_id = req.user.id;
+  const {
+    name,
+    email,
+    phone,
+    password,
+    agency_name,
+    license_number,
+    specialization,
+    experience_years,
+    bio,
+    address,
+    city,
+    country,
+    is_active,
+    profile_image
+  } = req.body;
 
-  const agent = await Agent.create(agentData);
+  try {
+    // 1. Create User with role 'agent'
+    const userData = {
+      name,
+      email,
+      phone,
+      password,
+      role: 'agent',
+      isActive: is_active !== undefined ? true : is_active,
+      profile_image
+    };
 
-  await ActivityLog.create({
-    user_id: req.user.id,
-    action: 'create_agent',
-    description: `Admin created agent: ${agentData.name}`,
-    ip_address: req.ip
-  });
+    const newUser = await User.create(userData);
 
-  res.status(201).json({
-    success: true,
-    message: 'Agent created successfully',
-    data: agent
-  });
+    // 2. Create UserProfile
+    const profileData = {
+      user_id: newUser._id,
+      bio: bio || '',
+      address: address || '',
+      city: city || '',
+      country: country || ''
+    };
+
+    await UserProfile.create(profileData);
+
+    // 3. Create Agent record
+    const agentData = {
+      user_id: newUser._id,
+      agency_name: agency_name || '',
+      license_number: license_number || '',
+      specialization: specialization || '',
+      experience_years: experience_years || 0,
+      is_active: is_active !== undefined ? true : is_active
+    };
+
+    const agent = await Agent.create(agentData);
+
+    await ActivityLog.create({
+      user_id: req.user.id,
+      action: 'admin_create_agent',
+      description: `Admin created agent: ${name}`,
+      ip_address: req.ip
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Agent created successfully',
+      data: {
+        ...agent.toObject(),
+        user_id: newUser.toObject()
+      }
+    });
+  } catch (error) {
+    console.error('Agent creation error:', error);
+    
+    // Handle duplicate key errors
+    if (error.code === 11000) {
+      if (error.message?.includes('email')) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email already exists'
+        });
+      }
+      if (error.message?.includes('license_number')) {
+        return res.status(400).json({
+          success: false,
+          message: 'License number already exists'
+        });
+      }
+    }
+    
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to create agent'
+    });
+  }
 });
 
 // Get Inquiries
@@ -1323,6 +1493,7 @@ module.exports = {
   getAgents,
   createAgent,
   verifyAgent,
+  updateAgent,
   getInquiries,
   createInquiry,
   updateInquiryStatus,
