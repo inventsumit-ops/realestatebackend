@@ -17,6 +17,7 @@ const activityLogSchema = new mongoose.Schema({
       'send_message', 'read_message', 'delete_message',
       'admin_approve_property', 'admin_reject_property', 'admin_verify_agent',
       'admin_create_user', 'admin_delete_user', 'admin_create_ad', 'admin_update_ad', 'admin_delete_ad',
+      'admin_create_agent', 'admin_update_agent', 'admin_delete_agent',
       'create_blog', 'update_blog', 'delete_blog', 'approve_comment', 'reject_comment'
     ]
   },

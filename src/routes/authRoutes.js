@@ -22,6 +22,7 @@ router.post('/reset-password/:token', resetPassword);
 router.get('/verify-email/:token', verifyEmail);
 router.post('/resend-otp', resendVerificationEmail);
 router.get('/profile', protect, getProfile);
+router.get('/me', protect, getProfile);
 router.put('/update-profile', protect, updateProfile);
 router.delete('/delete-account', protect, deleteAccount);
 

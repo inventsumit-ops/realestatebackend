@@ -10,6 +10,7 @@ const BlogCategory = require('../models/BlogCategory');
 const ActivityLog = require('../models/ActivityLog');
 const Notification = require('../models/Notification');
 const FeaturedProperty = require('../models/FeaturedProperty');
+const UserProfile = require('../models/UserProfile');
 const { asyncHandler } = require('../middleware/errorMiddleware');
 
 const getDashboard = asyncHandler(async (req, res) => {
@@ -147,11 +148,28 @@ const getUsers = asyncHandler(async (req, res) => {
     .limit(limit)
     .sort(sort);
 
+  // Get user profiles for all users
+  const userIds = users.map(user => user._id);
+  const profiles = await UserProfile.find({ user_id: { $in: userIds } });
+  
+  // Create a map for easy lookup
+  const profileMap = {};
+  profiles.forEach(profile => {
+    profileMap[profile.user_id.toString()] = profile;
+  });
+  
+  // Attach profile data to each user
+  const usersWithProfiles = users.map(user => {
+    const userObj = user.toObject();
+    userObj.profile = profileMap[user._id.toString()] || null;
+    return userObj;
+  });
+
   const total = await User.countDocuments(filter);
 
   res.json({
     success: true,
-    data: users,
+    data: usersWithProfiles,
     pagination: {
       page,
       limit,
@@ -193,6 +211,73 @@ const deleteUser = asyncHandler(async (req, res) => {
   res.json({
     success: true,
     message: 'User deleted successfully'
+  });
+});
+
+const updateUser = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id);
+
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      message: 'User not found'
+    });
+  }
+
+  if (user.role === 'admin') {
+    return res.status(400).json({
+      success: false,
+      message: 'Cannot update admin user'
+    });
+  }
+
+  const { name, email, phone, role, isActive, bio, address, city, country, profile_image } = req.body;
+
+  // Update user basic info
+  if (name) user.name = name;
+  if (email) user.email = email;
+  if (phone) user.phone = phone;
+  if (role) user.role = role;
+  if (isActive !== undefined) user.isActive = isActive;
+  if (profile_image) user.profile_image = profile_image;
+
+  await user.save();
+
+  // Update or create user profile
+  let userProfile = await UserProfile.findOne({ user_id: user._id });
+  
+  if (!userProfile) {
+    userProfile = new UserProfile({ user_id: user._id });
+  }
+
+  if (bio) userProfile.bio = bio;
+  if (address) userProfile.address = address;
+  if (city) userProfile.city = city;
+  if (country) userProfile.country = country;
+
+  await userProfile.save();
+
+  // Fetch updated user with profile for response
+  const updatedUser = await User.findById(user._id);
+  const userProfileData = await UserProfile.findOne({ user_id: user._id });
+
+  // Combine user and profile data for response
+  const responseData = updatedUser.toObject();
+  responseData.profile = userProfileData ? userProfileData.toObject() : null;
+
+  await ActivityLog.create({
+    user_id: req.user.id,
+    action: 'update_profile',
+    resource_type: 'User',
+    resource_id: user._id,
+    description: `Admin updated user: ${user.name}`,
+    ip_address: req.ip
+  });
+
+  res.json({
+    success: true,
+    message: 'User updated successfully',
+    data: responseData
   });
 });
 
@@ -1229,6 +1314,7 @@ module.exports = {
   getUsers,
   createUser,
   deleteUser,
+  updateUser,
   getProperties,
   createProperty,
   approveProperty,

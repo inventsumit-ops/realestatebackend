@@ -5,6 +5,7 @@ const {
   getUsers,
   createUser,
   deleteUser,
+  updateUser,
   getProperties,
   createProperty,
   approveProperty,
@@ -44,6 +45,7 @@ router.get('/dashboard', getDashboard);
 
 router.get('/users', getUsers);
 router.post('/users', createUser);
+router.put('/users/:id', updateUser);
 router.delete('/users/:id', deleteUser);
 
 router.get('/properties', getProperties);
