@@ -9,11 +9,11 @@ const amenitySchema = new mongoose.Schema({
   },
   icon: {
     type: String,
-    required: [true, 'Icon is required']
+    required: false
   },
   category: {
     type: String,
-    enum: ['general', 'safety', 'entertainment', 'outdoor', 'kitchen', 'bathroom', 'laundry', 'heating_cooling'],
+    enum: ['interior', 'exterior', 'community', 'safety', 'recreation', 'general'],
     default: 'general'
   },
   description: {

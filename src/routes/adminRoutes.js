@@ -37,6 +37,13 @@ const {
   getSettings,
   updateSettings
 } = require('../controllers/adminController');
+const {
+  getAmenities,
+  getAmenityById,
+  createAmenity,
+  updateAmenity,
+  deleteAmenity
+} = require('../controllers/amenityController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
 router.use(protect);
@@ -86,5 +93,12 @@ router.delete('/blogs/:id', deleteBlog);
 
 router.get('/settings', getSettings);
 router.put('/settings', updateSettings);
+
+// Amenity Routes
+router.get('/amenities', getAmenities);
+router.get('/amenities/:id', getAmenityById);
+router.post('/amenities', createAmenity);
+router.put('/amenities/:id', updateAmenity);
+router.delete('/amenities/:id', deleteAmenity);
 
 module.exports = router;
