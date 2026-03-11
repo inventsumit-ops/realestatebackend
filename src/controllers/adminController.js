@@ -1535,6 +1535,175 @@ const deleteBlog = asyncHandler(async (req, res) => {
   });
 });
 
+// Blog Categories Management
+const getBlogCategories = asyncHandler(async (req, res) => {
+  const {
+    page = 1,
+    limit = 10,
+    search,
+    is_active
+  } = req.query;
+
+  const query = {};
+  
+  if (is_active !== undefined && is_active !== '') query.is_active = is_active === 'true';
+  if (search) {
+    query.$or = [
+      { name: new RegExp(search, 'i') },
+      { description: new RegExp(search, 'i') }
+    ];
+  }
+
+  const categories = await BlogCategory.find(query)
+    .populate('parent_category', 'name')
+    .sort({ order: 1, name: 1 })
+    .limit(limit * 1)
+    .skip((page - 1) * limit);
+
+  const total = await BlogCategory.countDocuments(query);
+
+  res.json({
+    success: true,
+    data: categories,
+    pagination: {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      total,
+      pages: Math.ceil(total / limit)
+    }
+  });
+});
+
+const createBlogCategory = asyncHandler(async (req, res) => {
+  const { name, slug, description, parent_category, image, order } = req.body;
+
+  // Check if slug already exists
+  const existingCategory = await BlogCategory.findOne({ slug });
+  if (existingCategory) {
+    return res.status(400).json({
+      success: false,
+      message: 'Category with this slug already exists'
+    });
+  }
+
+  const categoryData = {
+    name,
+    slug: slug.toLowerCase().replace(/\s+/g, '-'),
+    description,
+    parent_category: parent_category || null,
+    image,
+    order: order || 0
+  };
+
+  const category = await BlogCategory.create(categoryData);
+
+  await ActivityLog.create({
+    user_id: req.user.id,
+    action: 'create_blog',
+    resource_type: 'Blog',
+    resource_id: category._id,
+    description: `Created blog category: ${category.name}`
+  });
+
+  res.status(201).json({
+    success: true,
+    message: 'Blog category created successfully',
+    data: category
+  });
+});
+
+const updateBlogCategory = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const updateData = req.body;
+
+  // If slug is being updated, check for duplicates
+  if (updateData.slug) {
+    updateData.slug = updateData.slug.toLowerCase().replace(/\s+/g, '-');
+    const existingCategory = await BlogCategory.findOne({ 
+      slug: updateData.slug, 
+      _id: { $ne: id } 
+    });
+    
+    if (existingCategory) {
+      return res.status(400).json({
+        success: false,
+        message: 'Category with this slug already exists'
+      });
+    }
+  }
+
+  const category = await BlogCategory.findByIdAndUpdate(
+    id,
+    updateData,
+    { new: true, runValidators: true }
+  ).populate('parent_category', 'name');
+
+  if (!category) {
+    return res.status(404).json({
+      success: false,
+      message: 'Blog category not found'
+    });
+  }
+
+  await ActivityLog.create({
+    user_id: req.user.id,
+    action: 'update_blog',
+    resource_type: 'Blog',
+    resource_id: category._id,
+    description: `Updated blog category: ${category.name}`
+  });
+
+  res.json({
+    success: true,
+    message: 'Blog category updated successfully',
+    data: category
+  });
+});
+
+const deleteBlogCategory = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  // Check if category is being used by any blogs
+  const blogsUsingCategory = await Blog.countDocuments({ category_id: id });
+  if (blogsUsingCategory > 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'Cannot delete category that is being used by blog posts'
+    });
+  }
+
+  // Check if category has child categories
+  const childCategories = await BlogCategory.countDocuments({ parent_category: id });
+  if (childCategories > 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'Cannot delete category that has child categories'
+    });
+  }
+
+  const category = await BlogCategory.findByIdAndDelete(id);
+
+  if (!category) {
+    return res.status(404).json({
+      success: false,
+      message: 'Blog category not found'
+    });
+  }
+
+  await ActivityLog.create({
+    user_id: req.user.id,
+    action: 'delete_blog',
+    resource_type: 'Blog',
+    resource_id: category._id,
+    description: `Deleted blog category: ${category.name}`
+  });
+
+  res.json({
+    success: true,
+    message: 'Blog category deleted successfully'
+  });
+});
+
 module.exports = {
   getDashboard,
   getUsers,
@@ -1570,6 +1739,10 @@ module.exports = {
   getBlogs,
   updateBlog,
   deleteBlog,
+  getBlogCategories,
+  createBlogCategory,
+  updateBlogCategory,
+  deleteBlogCategory,
   getSettings,
   updateSettings
 };

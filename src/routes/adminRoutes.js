@@ -35,6 +35,10 @@ const {
   getBlogs,
   updateBlog,
   deleteBlog,
+  getBlogCategories,
+  createBlogCategory,
+  updateBlogCategory,
+  deleteBlogCategory,
   getSettings,
   updateSettings
 } = require('../controllers/adminController');
@@ -92,6 +96,12 @@ router.post('/blogs', createBlog);
 router.get('/blogs', getBlogs);
 router.put('/blogs/:id', updateBlog);
 router.delete('/blogs/:id', deleteBlog);
+
+// Blog Categories Routes
+router.get('/blog-categories', getBlogCategories);
+router.post('/blog-categories', createBlogCategory);
+router.put('/blog-categories/:id', updateBlogCategory);
+router.delete('/blog-categories/:id', deleteBlogCategory);
 
 router.get('/settings', getSettings);
 router.put('/settings', updateSettings);
