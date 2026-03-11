@@ -40,7 +40,20 @@ const {
   updateBlogCategory,
   deleteBlogCategory,
   getSettings,
-  updateSettings
+  updateSettings,
+  // Review management functions
+  getPropertyReviews,
+  getPropertyReviewById,
+  createPropertyReview,
+  updatePropertyReview,
+  deletePropertyReview,
+  getAgentReviews,
+  getAgentReviewById,
+  createAgentReview,
+  updateAgentReview,
+  deleteAgentReview,
+  approveReview,
+  rejectReview
 } = require('../controllers/adminController');
 const {
   getAmenities,
@@ -112,5 +125,26 @@ router.get('/amenities/:id', getAmenityById);
 router.post('/amenities', createAmenity);
 router.put('/amenities/:id', updateAmenity);
 router.delete('/amenities/:id', deleteAmenity);
+
+// Review Management Routes
+// Property Reviews
+router.get('/reviews/properties', getPropertyReviews);
+router.get('/reviews/properties/:id', getPropertyReviewById);
+router.post('/reviews/properties', createPropertyReview);
+router.put('/reviews/properties/:id', updatePropertyReview);
+router.delete('/reviews/properties/:id', deletePropertyReview);
+
+// Agent Reviews
+router.get('/reviews/agents', getAgentReviews);
+router.get('/reviews/agents/:id', getAgentReviewById);
+router.post('/reviews/agents', createAgentReview);
+router.put('/reviews/agents/:id', updateAgentReview);
+router.delete('/reviews/agents/:id', deleteAgentReview);
+
+// Review Moderation
+router.patch('/reviews/properties/:id/approve', (req, res) => approveReview(req, res, 'properties'));
+router.patch('/reviews/properties/:id/reject', (req, res) => rejectReview(req, res, 'properties'));
+router.patch('/reviews/agents/:id/approve', (req, res) => approveReview(req, res, 'agents'));
+router.patch('/reviews/agents/:id/reject', (req, res) => rejectReview(req, res, 'agents'));
 
 module.exports = router;

@@ -3,7 +3,8 @@ const Property = require('../models/Property');
 const Agent = require('../models/Agent');
 const Inquiry = require('../models/Inquiry');
 const Appointment = require('../models/Appointment');
-const Review = require('../models/PropertyReview');
+const PropertyReview = require('../models/PropertyReview');
+const AgentReview = require('../models/AgentReview');
 const Advertisement = require('../models/Advertisement');
 const Blog = require('../models/Blog');
 const BlogCategory = require('../models/BlogCategory');
@@ -1704,6 +1705,405 @@ const deleteBlogCategory = asyncHandler(async (req, res) => {
   });
 });
 
+// Admin Review Management Functions
+
+const getPropertyReviews = asyncHandler(async (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+
+  const { rating, is_verified, search, sort_by } = req.query;
+
+  let filter = {};
+  
+  if (rating) {
+    const ratings = Array.isArray(rating) ? rating : [rating];
+    filter.rating = { $in: ratings.map(r => parseInt(r)) };
+  }
+  if (is_verified !== undefined && is_verified !== '') filter.is_verified = is_verified === 'true';
+  
+  if (search) {
+    filter.$or = [
+      { 'user_id.name': { $regex: search, $options: 'i' } },
+      { 'property_id.title': { $regex: search, $options: 'i' } },
+      { comment: { $regex: search, $options: 'i' } }
+    ];
+  }
+
+  let sort = { created_at: -1 };
+  if (sort_by === 'rating_high') sort = { rating: -1, created_at: -1 };
+  if (sort_by === 'rating_low') sort = { rating: 1, created_at: -1 };
+
+  const reviews = await PropertyReview.find(filter)
+    .populate([
+      { path: 'user_id', select: 'name email profile_image' },
+      { path: 'property_id', select: 'title location' }
+    ])
+    .skip(skip)
+    .limit(limit)
+    .sort(sort);
+
+  const total = await PropertyReview.countDocuments(filter);
+
+  res.json({
+    success: true,
+    data: reviews,
+    pagination: {
+      page,
+      limit,
+      total,
+      pages: Math.ceil(total / limit)
+    }
+  });
+});
+
+const getPropertyReviewById = asyncHandler(async (req, res) => {
+  const review = await PropertyReview.findById(req.params.id)
+    .populate([
+      { path: 'user_id', select: 'name email profile_image' },
+      { path: 'property_id', select: 'title location' },
+      { path: 'responded_by', select: 'name' }
+    ]);
+
+  if (!review) {
+    return res.status(404).json({
+      success: false,
+      message: 'Review not found'
+    });
+  }
+
+  res.json({
+    success: true,
+    data: review
+  });
+});
+
+const createPropertyReview = asyncHandler(async (req, res) => {
+  const { user_id, property_id, rating, comment, is_verified } = req.body;
+
+  // Check if user and property exist
+  const user = await User.findById(user_id);
+  const property = await Property.findById(property_id);
+
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      message: 'User not found'
+    });
+  }
+
+  if (!property) {
+    return res.status(404).json({
+      success: false,
+      message: 'Property not found'
+    });
+  }
+
+  const existingReview = await PropertyReview.findOne({
+    user_id,
+    property_id
+  });
+
+  if (existingReview) {
+    return res.status(400).json({
+      success: false,
+      message: 'Review already exists for this user and property'
+    });
+  }
+
+  const review = await PropertyReview.create({
+    user_id,
+    property_id,
+    rating,
+    comment,
+    is_verified: is_verified || false
+  });
+
+  await review.populate([
+    { path: 'user_id', select: 'name email profile_image' },
+    { path: 'property_id', select: 'title location' }
+  ]);
+
+  res.status(201).json({
+    success: true,
+    message: 'Review created successfully',
+    data: review
+  });
+});
+
+const updatePropertyReview = asyncHandler(async (req, res) => {
+  const { rating, comment, is_verified } = req.body;
+
+  const review = await PropertyReview.findById(req.params.id);
+
+  if (!review) {
+    return res.status(404).json({
+      success: false,
+      message: 'Review not found'
+    });
+  }
+
+  const updatedReview = await PropertyReview.findByIdAndUpdate(
+    req.params.id,
+    { rating, comment, is_verified },
+    { new: true, runValidators: true }
+  ).populate([
+    { path: 'user_id', select: 'name email profile_image' },
+    { path: 'property_id', select: 'title location' }
+  ]);
+
+  res.json({
+    success: true,
+    message: 'Review updated successfully',
+    data: updatedReview
+  });
+});
+
+const deletePropertyReview = asyncHandler(async (req, res) => {
+  const review = await PropertyReview.findById(req.params.id);
+
+  if (!review) {
+    return res.status(404).json({
+      success: false,
+      message: 'Review not found'
+    });
+  }
+
+  await PropertyReview.findByIdAndDelete(req.params.id);
+
+  res.json({
+    success: true,
+    message: 'Review deleted successfully'
+  });
+});
+
+const getAgentReviews = asyncHandler(async (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+
+  const { rating, is_verified, search, sort_by } = req.query;
+
+  let filter = {};
+  
+  if (rating) {
+    const ratings = Array.isArray(rating) ? rating : [rating];
+    filter.rating = { $in: ratings.map(r => parseInt(r)) };
+  }
+  if (is_verified !== undefined && is_verified !== '') filter.is_verified = is_verified === 'true';
+  
+  if (search) {
+    filter.$or = [
+      { 'user_id.name': { $regex: search, $options: 'i' } },
+      { 'agent_id.user_id.name': { $regex: search, $options: 'i' } },
+      { review: { $regex: search, $options: 'i' } }
+    ];
+  }
+
+  let sort = { created_at: -1 };
+  if (sort_by === 'rating_high') sort = { rating: -1, created_at: -1 };
+  if (sort_by === 'rating_low') sort = { rating: 1, created_at: -1 };
+
+  const reviews = await AgentReview.find(filter)
+    .populate([
+      { path: 'user_id', select: 'name email profile_image' },
+      { path: 'agent_id', populate: { path: 'user_id', select: 'name email' } },
+      { path: 'property_id', select: 'title' }
+    ])
+    .skip(skip)
+    .limit(limit)
+    .sort(sort);
+
+  const total = await AgentReview.countDocuments(filter);
+
+  res.json({
+    success: true,
+    data: reviews,
+    pagination: {
+      page,
+      limit,
+      total,
+      pages: Math.ceil(total / limit)
+    }
+  });
+});
+
+const getAgentReviewById = asyncHandler(async (req, res) => {
+  const review = await AgentReview.findById(req.params.id)
+    .populate([
+      { path: 'user_id', select: 'name email profile_image' },
+      { path: 'agent_id', populate: { path: 'user_id', select: 'name email' } },
+      { path: 'property_id', select: 'title' }
+    ]);
+
+  if (!review) {
+    return res.status(404).json({
+      success: false,
+      message: 'Review not found'
+    });
+  }
+
+  res.json({
+    success: true,
+    data: review
+  });
+});
+
+const createAgentReview = asyncHandler(async (req, res) => {
+  const { agent_id, user_id, property_id, rating, review, communication_rating, professionalism_rating, knowledge_rating, is_verified } = req.body;
+
+  // Check if agent and user exist
+  const agent = await Agent.findById(agent_id);
+  const user = await User.findById(user_id);
+
+  if (!agent) {
+    return res.status(404).json({
+      success: false,
+      message: 'Agent not found'
+    });
+  }
+
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      message: 'User not found'
+    });
+  }
+
+  const existingReview = await AgentReview.findOne({
+    agent_id,
+    user_id
+  });
+
+  if (existingReview) {
+    return res.status(400).json({
+      success: false,
+      message: 'Review already exists for this user and agent'
+    });
+  }
+
+  const agentReview = await AgentReview.create({
+    agent_id,
+    user_id,
+    property_id,
+    rating,
+    review,
+    communication_rating,
+    professionalism_rating,
+    knowledge_rating,
+    is_verified: is_verified || false
+  });
+
+  await agentReview.populate([
+    { path: 'user_id', select: 'name email profile_image' },
+    { path: 'agent_id', populate: { path: 'user_id', select: 'name email' } },
+    { path: 'property_id', select: 'title' }
+  ]);
+
+  res.status(201).json({
+    success: true,
+    message: 'Review created successfully',
+    data: agentReview
+  });
+});
+
+const updateAgentReview = asyncHandler(async (req, res) => {
+  const { rating, review, communication_rating, professionalism_rating, knowledge_rating, is_verified } = req.body;
+
+  const agentReview = await AgentReview.findById(req.params.id);
+
+  if (!agentReview) {
+    return res.status(404).json({
+      success: false,
+      message: 'Review not found'
+    });
+  }
+
+  const updatedReview = await AgentReview.findByIdAndUpdate(
+    req.params.id,
+    { rating, review, communication_rating, professionalism_rating, knowledge_rating, is_verified },
+    { new: true, runValidators: true }
+  ).populate([
+    { path: 'user_id', select: 'name email profile_image' },
+    { path: 'agent_id', populate: { path: 'user_id', select: 'name email' } },
+    { path: 'property_id', select: 'title' }
+  ]);
+
+  res.json({
+    success: true,
+    message: 'Review updated successfully',
+    data: updatedReview
+  });
+});
+
+const deleteAgentReview = asyncHandler(async (req, res) => {
+  const agentReview = await AgentReview.findById(req.params.id);
+
+  if (!agentReview) {
+    return res.status(404).json({
+      success: false,
+      message: 'Review not found'
+    });
+  }
+
+  await AgentReview.findByIdAndDelete(req.params.id);
+
+  res.json({
+    success: true,
+    message: 'Review deleted successfully'
+  });
+});
+
+const approveReview = asyncHandler(async (req, res, type) => {
+  const { id } = req.params;
+
+  let ReviewModel = type === 'agents' ? AgentReview : PropertyReview;
+  
+  const review = await ReviewModel.findById(id);
+
+  if (!review) {
+    return res.status(404).json({
+      success: false,
+      message: 'Review not found'
+    });
+  }
+
+  review.is_verified = true;
+  await review.save();
+
+  res.json({
+    success: true,
+    message: 'Review approved successfully',
+    data: review
+  });
+});
+
+const rejectReview = asyncHandler(async (req, res, type) => {
+  const { id } = req.params;
+  const { reason } = req.body;
+
+  let ReviewModel = type === 'agents' ? AgentReview : PropertyReview;
+  
+  const review = await ReviewModel.findById(id);
+
+  if (!review) {
+    return res.status(404).json({
+      success: false,
+      message: 'Review not found'
+    });
+  }
+
+  review.is_verified = false;
+  review.rejection_reason = reason;
+  await review.save();
+
+  res.json({
+    success: true,
+    message: 'Review rejected successfully',
+    data: review
+  });
+});
+
 module.exports = {
   getDashboard,
   getUsers,
@@ -1744,5 +2144,18 @@ module.exports = {
   updateBlogCategory,
   deleteBlogCategory,
   getSettings,
-  updateSettings
+  updateSettings,
+  // Review management functions
+  getPropertyReviews,
+  getPropertyReviewById,
+  createPropertyReview,
+  updatePropertyReview,
+  deletePropertyReview,
+  getAgentReviews,
+  getAgentReviewById,
+  createAgentReview,
+  updateAgentReview,
+  deleteAgentReview,
+  approveReview,
+  rejectReview
 };

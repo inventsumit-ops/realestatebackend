@@ -81,6 +81,11 @@ app.use('/api/appointments', require('./src/routes/appointmentRoutes'));
 app.use('/api/messages', require('./src/routes/messageRoutes'));
 app.use('/api/admin', require('./src/routes/adminRoutes'));
 
+// Handle favicon.ico requests to prevent 404 errors
+app.get('/favicon.ico', (req, res) => {
+  res.status(204).end();
+});
+
 app.use(notFound);
 app.use(errorHandler);
 
