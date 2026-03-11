@@ -306,18 +306,30 @@ const getProperties = asyncHandler(async (req, res) => {
 
   const properties = await Property.find(filter)
     .populate([
-      { path: 'agent_id', populate: { path: 'user_id', select: 'name email' } },
-      { path: 'property_images', match: { is_primary: true } }
+      { path: 'agent_id', populate: { path: 'user_id', select: 'name email' } }
     ])
     .skip(skip)
     .limit(limit)
     .sort(sort);
 
+  // Fetch images for each property
+  const PropertyImage = require('../models/PropertyImage');
+  const propertiesWithImages = await Promise.all(
+    properties.map(async (property) => {
+      const images = await PropertyImage.find({ property_id: property._id })
+        .sort({ order: 1 });
+      return {
+        ...property.toObject(),
+        images: images.map(img => img.image_url)
+      };
+    })
+  );
+
   const total = await Property.countDocuments(filter);
 
   res.json({
     success: true,
-    data: properties,
+    data: propertiesWithImages,
     pagination: {
       page,
       limit,
@@ -1086,6 +1098,50 @@ const createProperty = asyncHandler(async (req, res) => {
   });
 });
 
+// Update Property
+const updateProperty = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const updateData = req.body;
+
+  const property = await Property.findById(id);
+
+  if (!property) {
+    return res.status(404).json({
+      success: false,
+      message: 'Property not found'
+    });
+  }
+
+  // Update property with new data
+  const updatedProperty = await Property.findByIdAndUpdate(
+    id,
+    updateData,
+    { new: true, runValidators: true }
+  );
+
+  if (!updatedProperty) {
+    return res.status(400).json({
+      success: false,
+      message: 'Failed to update property'
+    });
+  }
+
+  await ActivityLog.create({
+    user_id: req.user.id,
+    action: 'update_property',
+    resource_type: 'Property',
+    resource_id: property._id,
+    description: `Admin updated property: ${property.title}`,
+    ip_address: req.ip
+  });
+
+  res.json({
+    success: true,
+    message: 'Property updated successfully',
+    data: updatedProperty
+  });
+});
+
 // Create Agent
 const createAgent = asyncHandler(async (req, res) => {
   const {
@@ -1487,6 +1543,7 @@ module.exports = {
   updateUser,
   getProperties,
   createProperty,
+  updateProperty,
   approveProperty,
   rejectProperty,
   deleteProperty,

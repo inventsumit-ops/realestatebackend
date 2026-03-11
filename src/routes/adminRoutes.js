@@ -8,6 +8,7 @@ const {
   updateUser,
   getProperties,
   createProperty,
+  updateProperty,
   approveProperty,
   rejectProperty,
   deleteProperty,
@@ -58,6 +59,7 @@ router.delete('/users/:id', deleteUser);
 
 router.get('/properties', getProperties);
 router.post('/properties', createProperty);
+router.put('/properties/:id', updateProperty);
 router.put('/properties/:id/approve', approveProperty);
 router.put('/properties/:id/reject', rejectProperty);
 router.delete('/properties/:id', deleteProperty);
